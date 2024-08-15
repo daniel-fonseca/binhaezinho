@@ -42,33 +42,20 @@ class SumThread implements Runnable {
     }
 }
 
-public class FileSimilarity {
+class SimilarityThread implements Runnable {
+    private String[] args;
+    private Integer i;
+    private Map<String, List<Long>> fileFingerprints;
 
-    public static void main(String[] args) throws Exception {
-        if (args.length < 2) {
-            System.err.println("Usage: java Sum filepath1 filepath2 filepathN");
-            System.exit(1);
-        }
+    public SimilarityThread(String[] args, int i, Map<String, List<Long>> fileFingerprints) {
+        this.args = args;
+        this.i = i;
+        this.fileFingerprints = fileFingerprints;
+    }
 
-        // Create a map to store the fingerprint for each file
-        Map<String, List<Long>> fileFingerprints = new HashMap<>();
-
-        for (String path : args) {
-            List<Long> fingerprint = new ArrayList<>();
-            fileFingerprints.put(path, fingerprint);
-        }
-
-        Thread[] threads = new Thread[args.length];
-
-        // Calculate the fingerprint for each file
-        for (int i = 0; i < args.length; i++) {
-            Thread thread = new Thread(new SumThread(fileFingerprints, args[i]));
-            threads[i] = thread;
-            thread.start();
-        }
-
-        // Compare each pair of files
-        for (int i = 0; i < args.length; i++) {
+    @Override
+    public void run() {
+        try {
             for (int j = i + 1; j < args.length; j++) {
                 String file1 = args[i];
                 String file2 = args[j];
@@ -78,10 +65,11 @@ public class FileSimilarity {
                 System.out.println(
                         "Similarity between " + file1 + " and " + file2 + ": " + (similarityScore * 100) + "%");
             }
+        } catch (Exception ex) {
         }
     }
 
-    private static float similarity(List<Long> base, List<Long> target) {
+    private float similarity(List<Long> base, List<Long> target) {
         int counter = 0;
         List<Long> targetCopy = new ArrayList<>(target);
 
@@ -93,5 +81,49 @@ public class FileSimilarity {
         }
 
         return (float) counter / base.size();
+    }
+}
+
+public class FileSimilarity {
+
+    public static void main(String[] args) throws Exception {
+        if (args.length < 2) {
+            System.err.println("Usage: java Sum filepath1 filepath2 filepathN");
+            System.exit(1);
+        }
+
+        // Create a map to store the fingerprint for each file
+        Map<String, List<Long>> fileFingerprints = new HashMap<>();
+
+        // Allocate memory
+        for (String path : args) {
+            List<Long> fingerprint = new ArrayList<>();
+            fileFingerprints.put(path, fingerprint);
+        }
+
+        // Calculate the fingerprint for each file
+        Thread[] threads = new Thread[args.length];
+        for (int i = 0; i < args.length; i++) {
+            Thread thread = new Thread(new SumThread(fileFingerprints, args[i]));
+            threads[i] = thread;
+            thread.start();
+        }
+
+        // stop threads
+        for (Thread t : threads) {
+            t.join();
+        }
+
+        // Compare each pair of files
+        for (int i = 0; i < args.length; i++) {
+            Thread thread = new Thread(new SimilarityThread(args, i, fileFingerprints));
+            threads[i] = thread;
+            thread.start();
+        }
+
+        // stop threads
+        for (Thread t : threads) {
+            t.join();
+        }
     }
 }
